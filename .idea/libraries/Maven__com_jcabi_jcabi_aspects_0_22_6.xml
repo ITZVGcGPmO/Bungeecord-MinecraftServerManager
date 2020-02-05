@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.jcabi:jcabi-aspects:0.22.6">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/jcabi/jcabi-aspects/0.22.6/jcabi-aspects-0.22.6.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/jcabi/jcabi-aspects/0.22.6/jcabi-aspects-0.22.6-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/jcabi/jcabi-aspects/0.22.6/jcabi-aspects-0.22.6-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

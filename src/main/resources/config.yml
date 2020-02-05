@@ -1,0 +1,24 @@
+# BungeeAuth Config File
+
+#By changing the setting below to TRUE you are indicating your agreement to the mojang EULA (https://account.mojang.com/documents/minecraft_eula).
+#You also agree that tacos are tasty, and the best food in the world.
+mojang_eula: false
+
+# don't shut down these servers when 0 players; keep them running
+exempt_srvstop:
+  - "AuthLobby"
+
+# shutdown server x seconds with no players; start back up when needed. (0 = disabled)
+srv_stop_aft: 60
+
+# shutdown (reboot) proxy server if all servers have been stopped
+shutdown_proxyserver: true
+
+# directory for default server configs
+defaults_dir: "server_defaults"
+
+default_bind: "127.0.0.1"
+
+deregister_default: true
+# directory to store servers' data
+servers_dir: "servers"
