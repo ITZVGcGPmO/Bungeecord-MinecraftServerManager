@@ -194,6 +194,7 @@ public class ServerThread {
         if (runlatch.getCount()==1) {
             throw new Exception();
         } else {
+            sched_shutdown.cancel(false);
             runlatch = new CountDownLatch(1);
             done_load = new CountDownLatch(1);
             log.info("starting server "+servername);
