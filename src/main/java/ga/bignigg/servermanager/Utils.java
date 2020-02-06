@@ -1,18 +1,5 @@
 package ga.bignigg.servermanager;
 
-import java.io.*;
-import java.net.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -22,9 +9,21 @@ import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.ComponentBuilder;
-import net.md_5.bungee.api.config.ListenerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.config.Configuration;
+
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.ServerSocket;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static ga.bignigg.servermanager.Main.*;
 
@@ -245,7 +244,9 @@ public class Utils {
     }
     public static void dumpError(CommandSender s, Exception e) {
         String errfile = plugin.getDataFolder().toString() + File.separator + "errors" + File.separator + "err_" + System.currentTimeMillis();
-        writeTextFile(errfile, e.getStackTrace().toString());
+        StringWriter sw = new StringWriter();
+        e.printStackTrace(new PrintWriter(sw));
+        writeTextFile(errfile, sw.toString());
         sendmsg(s, msg("command_error").replace("%errfile%", errfile), ChatColor.RED);
     }
     public static String getServerByHostname(String hostname) {

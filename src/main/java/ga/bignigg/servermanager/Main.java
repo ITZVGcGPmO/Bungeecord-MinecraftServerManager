@@ -101,10 +101,22 @@ public class Main extends Plugin {
     }
     @Override
     public void onDisable() {
+        AtomicInteger counter = new AtomicInteger();
         for (ServerThread th: serverThreadHashMap.values()) {
+            counter.set(counter.get() + 1);
             try {
-                th.stopServer();
+                new Thread(() -> {
+                    try {
+                        th.stopServer();
+                    } catch (Exception ignored) { }
+                    counter.set(counter.get() - 1);
+                }).start();
             } catch (Exception ignored) {}
+        }
+        while (counter.get()>0) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ignored) { }
         }
     }
 }

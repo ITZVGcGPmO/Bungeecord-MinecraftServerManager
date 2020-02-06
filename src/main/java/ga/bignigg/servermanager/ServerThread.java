@@ -1,9 +1,7 @@
 package ga.bignigg.servermanager;
 
-import net.md_5.bungee.api.*;
-import net.md_5.bungee.api.chat.ComponentBuilder;
-import net.md_5.bungee.api.config.ServerInfo;
-import net.md_5.bungee.api.event.ServerConnectEvent;
+import net.md_5.bungee.api.Favicon;
+import net.md_5.bungee.api.ProxyServer;
 
 import javax.imageio.ImageIO;
 import java.io.*;
@@ -11,14 +9,12 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static ga.bignigg.servermanager.Main.*;
 import static ga.bignigg.servermanager.Utils.*;
-import static ga.bignigg.servermanager.Utils.msg;
 
 public class ServerThread {
     private ExecutorService service = Executors.newCachedThreadPool();
@@ -41,9 +37,10 @@ public class ServerThread {
                 if (ProxyServer.getInstance().getServers().get(servername).getPlayers().size()==0) {
                     try {
                         writeCmd("say "+msg("sched_shutdown_msg").replace("%time%", ""+config.getInt("srv_stop_aft")));
-                        stopServer();
                         if (config.getBoolean("shutdown_proxyserver") && ProxyServer.getInstance().getPlayers().size()==0) {
                             ProxyServer.getInstance().stop();
+                        } else {
+                            stopServer();
                         }
                     } catch (Exception ignored) {}
                 }
@@ -51,10 +48,7 @@ public class ServerThread {
         }
     }
     public void endSchShutdown() {
-        if (sched_shutdown!=null) {
-            log.info("cancel scheduled shutdown");
-            sched_shutdown.cancel(false);
-        }
+        if (sched_shutdown!=null) { sched_shutdown.cancel(false); }
         if (config.getInt("srv_stop_aft")>0) {
             try {
                 startServer();
@@ -148,33 +142,12 @@ public class ServerThread {
         }
     }
 
-    public void restartServer(CommandSender s) { new Thread(() -> {
-        try {
-            s.sendMessage(new ComponentBuilder(msg("server_restarting").replace("%server%", servername)).color(ChatColor.GREEN).create());
-            stopServer();
-            runlatch.await();
-            startServer();
-            s.sendMessage(new ComponentBuilder(msg("server_restarted").replace("%server%", servername)).color(ChatColor.GREEN).create());
-        } catch (Exception e) {
-            s.sendMessage(new ComponentBuilder(msg("server_not_runnning").replace("%server%", servername)).color(ChatColor.RED).create());
-        }
-    }).start(); }
-
-    // message for invoked stop command
-    public void stopServer(CommandSender s) throws Exception {
-        stopServer();
-        new Thread(() -> {
-            try {
-                runlatch.await();
-                s.sendMessage(new ComponentBuilder(msg("server_stopped").replace("%server%", servername)).color(ChatColor.GREEN).create());
-            } catch (InterruptedException ignored) { }
-        }).start();
-    }
     public void stopServer() throws Exception {
         if (runlatch.getCount()==1) {
             auto_reboot_flag = false;
             writeCmd("stop");
             writeCmd("end");
+            runlatch.await();
         } else {
             throw new Exception();
         }
@@ -194,7 +167,7 @@ public class ServerThread {
         if (runlatch.getCount()==1) {
             throw new Exception();
         } else {
-            sched_shutdown.cancel(false);
+            if (sched_shutdown!=null) { sched_shutdown.cancel(false); }
             runlatch = new CountDownLatch(1);
             done_load = new CountDownLatch(1);
             log.info("starting server "+servername);

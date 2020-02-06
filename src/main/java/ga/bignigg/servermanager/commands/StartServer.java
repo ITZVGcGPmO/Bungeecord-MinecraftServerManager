@@ -25,11 +25,11 @@ public class StartServer extends Command {
             if (s.hasPermission("msm."+servername+".start")) {
                 // server name is args[0]
                 if (serverThreadHashMap.containsKey(servername)) {
-                    try {
+                    if (!getServerClass(servername).isRunning()) {
                         sendmsg(s, msg("server_starting").replace("%server%", servername), ChatColor.GREEN);
                         getServerClass(servername).startServer();
                         sendmsg(s, msg("server_started").replace("%server%", servername), ChatColor.GREEN);
-                    } catch (Exception e) {
+                    } else {
                         sendmsg(s, msg("server_runnning").replace("%server%", servername), ChatColor.RED);
                     }
                 } else {

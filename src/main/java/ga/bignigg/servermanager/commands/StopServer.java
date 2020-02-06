@@ -22,10 +22,11 @@ public class StopServer extends Command {
                 servername = args[0].replaceAll("\\W", "");
             }
             if(s.hasPermission("msm."+servername+".stop")) {
-                try {
-                    getServerClass(servername).stopServer(s);
+                if (getServerClass(servername).isRunning()) {
                     sendmsg(s, msg("server_stopping").replace("%server%", servername), ChatColor.GREEN);
-                } catch (Exception e) {
+                    getServerClass(servername).stopServer();
+                    sendmsg(s, msg("server_stopped").replace("%server%", servername), ChatColor.GREEN);
+                } else {
                     sendmsg(s, msg("server_not_runnning").replace("%server%", servername), ChatColor.RED);
                 }
             } else {
