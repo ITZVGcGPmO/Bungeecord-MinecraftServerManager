@@ -187,7 +187,9 @@ public class ServerThread {
                         String pline = line.replaceFirst("^\\[\\d+:\\d+:\\d+ \\w+]: ", "");
                         if (!pline.equalsIgnoreCase(lastPrint)) { // stop console spam
                             if (done_load.getCount()==1 && line.contains(""+srvip)) {
+                                // join after server is responsive
                                 ProxyServer.getInstance().getServerInfo(servername).ping((ping, err) -> done_load.countDown());
+//                                // join before server is responsive
 //                                done_load.countDown();
                             }
                             log.info("["+servername+"] "+pline);

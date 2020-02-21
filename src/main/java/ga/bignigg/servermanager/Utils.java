@@ -6,9 +6,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jcabi.aspects.Cacheable;
 import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.config.Configuration;
 
@@ -268,5 +270,23 @@ public class Utils {
             }
         }
         return rets;
+    }
+
+    public static void tryReconnect(ProxiedPlayer pl, ServerInfo sinf, int tries_remaining) {
+        if (tries_remaining>0) {
+            sinf.ping((ping, err) -> {
+                if (ping==null) {
+
+                    pl.sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder(msg("wait_server_start").replace("%server%", sinf.getName())).color(ChatColor.LIGHT_PURPLE).create());
+                    serverThreadHashMap.get(sinf.getName()).endSchShutdown();
+                    tryReconnect(pl, sinf, tries_remaining-1);
+                } else {
+                    pl.sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder(msg("server_start_reconnect").replace("%server%", sinf.getName())).color(ChatColor.LIGHT_PURPLE).create());
+                    pl.connect(sinf);
+                }
+            });
+        } else {
+            pl.disconnect(new ComponentBuilder(msg("server_reconnect_nostart").replace("%server%", sinf.getName())).color(ChatColor.RED).create());
+        }
     }
 }

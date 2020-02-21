@@ -2,17 +2,19 @@ package ga.bignigg.servermanager;
 
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.ServerPing;
+import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.*;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
+import net.md_5.bungee.event.EventPriority;
 
 import java.util.*;
 
 import static ga.bignigg.servermanager.Main.*;
-import static ga.bignigg.servermanager.Utils.getServerByHostname;
-import static ga.bignigg.servermanager.Utils.getSuggestions;
+import static ga.bignigg.servermanager.Utils.*;
 
 public class ListenerClass implements Listener {
     public static final UUID EMPTY_UUID = UUID.fromString("0-0-0-0-0");
@@ -68,6 +70,21 @@ public class ListenerClass implements Listener {
         String servername = sde.getTarget().getName();
         if (serverThreadHashMap.containsKey(servername) && !config.getStringList("exempt_srvstop").contains(servername)) {
             serverThreadHashMap.get(servername).startSchShutdown();
+        }
+    }
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onServerKickEvent(ServerKickEvent ske) throws InterruptedException {
+        String krsn = BaseComponent.toLegacyText(ske.getKickReasonComponent());
+        ProxiedPlayer pl = ske.getPlayer();
+        log.info(pl.getName()+" kicked: reason: "+krsn);
+        if (!krsn.contains("banned")) {
+            ServerInfo kfrom = ske.getKickedFrom();
+            if (serverThreadHashMap.containsKey(kfrom.getName())) {
+                tryReconnect(pl, kfrom, 25);
+            }
+            // send to idle server
+            ske.setCancelServer(ProxyServer.getInstance().getServerInfo(config.getString("idle_server")));
+            ske.setCancelled(true);
         }
     }
     @EventHandler

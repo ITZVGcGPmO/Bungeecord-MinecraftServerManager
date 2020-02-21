@@ -23,22 +23,16 @@ public class RestartServer extends Command {
                 servername = args[0].replaceAll("\\W", "");
             }
             if (s.hasPermission("msm."+servername+".restart")) {
-
-                if (getServerClass(servername).isRunning()) {
-                    new Thread(() -> {
-                        sendmsg(s, msg("server_restarting").replace("%server%", servername), ChatColor.GREEN);
-                        if (getServerClass(servername).isRunning()) {
-                            sendmsg(s, msg("server_stopping").replace("%server%", servername), ChatColor.GREEN);
-                            try { getServerClass(servername).stopServer(); } catch (Exception ignored) { }
-                        }
-                        sendmsg(s, msg("server_starting").replace("%server%", servername), ChatColor.GREEN);
-                        try { getServerClass(servername).startServer(); } catch (Exception ignored) { }
-                        sendmsg(s, msg("server_restarted").replace("%server%", servername), ChatColor.GREEN);
-                    }).start();
-
-                } else {
-                    sendmsg(s, msg("server_not_runnning").replace("%server%", servername), ChatColor.RED);
-                }
+                new Thread(() -> {
+                    sendmsg(s, msg("server_restarting").replace("%server%", servername), ChatColor.GREEN);
+                    if (getServerClass(servername).isRunning()) {
+                        sendmsg(s, msg("server_stopping").replace("%server%", servername), ChatColor.GREEN);
+                        try { getServerClass(servername).stopServer(); } catch (Exception ignored) { }
+                    }
+                    sendmsg(s, msg("server_starting").replace("%server%", servername), ChatColor.GREEN);
+                    try { getServerClass(servername).startServer(); } catch (Exception ignored) { }
+                    sendmsg(s, msg("server_restarted").replace("%server%", servername), ChatColor.GREEN);
+                }).start();
             } else {
                 sendmsg(s, msg("no_permission"), ChatColor.RED);
             }

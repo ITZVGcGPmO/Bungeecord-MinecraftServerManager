@@ -28,6 +28,10 @@ reload_favicon: "reloaded favicon for server %server%"
 set_motd: "set motd to %motd% for server %server%"
 reload_motd: "reloaded motd for server %server%"
 
+wait_server_start: "waiting for %server% to start..."
+server_start_reconnect: "reconnecting to %server%..."
+server_reconnect_nostart: "%server% didn't start back up..."
+
 message_prefix: "[MSM] "
 no_permission: "invalid permissions to execute command."
 command_error: "error occoured executing command; check %errfile%"

@@ -22,3 +22,6 @@ default_bind: "127.0.0.1"
 deregister_default: true
 # directory to store servers' data
 servers_dir: "servers"
+
+# connect player to this server whilst server is rebooting
+idle_server: "AuthLobby"
