@@ -25,3 +25,6 @@ servers_dir: "servers"
 
 # connect player to this server whilst server is rebooting
 idle_server: "AuthLobby"
+
+reconnect_kick_messages:
+  - "Server closed"

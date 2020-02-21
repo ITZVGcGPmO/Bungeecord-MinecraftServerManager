@@ -74,10 +74,10 @@ public class ListenerClass implements Listener {
     }
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onServerKickEvent(ServerKickEvent ske) throws InterruptedException {
-        String krsn = BaseComponent.toLegacyText(ske.getKickReasonComponent());
+        String krsn = BaseComponent.toPlainText(ske.getKickReasonComponent());
         ProxiedPlayer pl = ske.getPlayer();
         log.info(pl.getName()+" kicked: reason: "+krsn);
-        if (!krsn.contains("banned")) {
+        if (config.getStringList("reconnect_kick_messages").contains(krsn)) {
             ServerInfo kfrom = ske.getKickedFrom();
             if (serverThreadHashMap.containsKey(kfrom.getName())) {
                 tryReconnect(pl, kfrom, 25);
