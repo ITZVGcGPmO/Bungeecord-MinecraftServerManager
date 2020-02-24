@@ -2,9 +2,9 @@ package ga.bignigg.servermanager.commands;
 
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
-import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.plugin.Command;
 
+import static ga.bignigg.servermanager.Main.plugin;
 import static ga.bignigg.servermanager.Main.serverThreadHashMap;
 import static ga.bignigg.servermanager.Utils.*;
 
@@ -17,7 +17,7 @@ public class StartServer extends Command {
         try {
             String servername;
             if (args.length < 1) { // default to server player is on
-                servername = ProxyServer.getInstance().getPlayer(s.getName()).getServer().getInfo().getName();
+                servername = plugin.getProxy().getPlayer(s.getName()).getServer().getInfo().getName();
                 return;
             } else {
                 servername = args[0].replaceAll("\\W", "");

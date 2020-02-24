@@ -1,16 +1,19 @@
 package ga.bignigg.servermanager;
 import ga.bignigg.servermanager.commands.*;
-import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.api.plugin.PluginManager;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
+
 import java.io.File;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
-import static ga.bignigg.servermanager.Utils.*;
+
+import static ga.bignigg.servermanager.Utils.getServerClass;
+import static ga.bignigg.servermanager.Utils.loadConfig;
 
 public class Main extends Plugin {
     public static HashMap<String, ServerThread> serverThreadHashMap = new HashMap<>();
@@ -24,37 +27,8 @@ public class Main extends Plugin {
     @Override
     public void onEnable() {
         plugin = this;
-        defaultserver = this.getProxy().getConfig().getListeners().iterator().next().getServerPriority().get(0);
         log = getLogger();
-        config = loadConfigFile("config.yml");
-        messages = loadConfigFile("messages.yml");
-        // force mojang EULA acceptance
-        if (!config.getBoolean("mojang_eula") ) {
-            Scanner myObj = new Scanner(System.in);
-            log.warning(msg("accept_eula"));
-            if (myObj.nextLine().toLowerCase().matches("true")){
-                log.info(msg("eula_accepted"));
-                sConf("mojang_eula", true);
-            } else {
-                log.info(msg("eula_denied"));
-                ProxyServer.getInstance().stop();
-            }
-        }
-        // load server directory + files and such
-        srvrsdir = new File(config.getString("servers_dir"));
-        if (!srvrsdir.exists()) { srvrsdir.mkdirs(); }
-        bindir = new File(plugin.getDataFolder().toString()+File.separator+"bin");
-        if (!bindir.exists()) { bindir.mkdirs(); }
-        // default server configs
-        srvdefsdir = new File(config.getString("defaults_dir"));
-        if (!srvdefsdir.exists()) {
-            srvdefsdir.mkdirs();
-            String base = config.getString("defaults_dir")+File.separator;
-            new File(base+"plugins").mkdir();
-            writeTextFile(base+"eula.txt","eula=true" );
-            writeTextFile(base+"server.properties", "spawn-protection=0\nquery.port=%serverport%\nsnooper-enabled=false\nmax-players=999\nserver-port=%serverport%\nserver-ip="+config.getString("default_bind")+"\nonline-mode=false\nmotd=%servername% via Bungee-MinecraftServerManager");
-            writeTextFile(base+"spigot.yml", "config-version: 12\nsettings:\n  bungeecord: true\n");
-        }
+        loadConfig();
         // register bungeecord commands
         PluginManager pluginManager = getProxy().getPluginManager();
         pluginManager.registerListener(this, new ListenerClass());
@@ -63,12 +37,13 @@ public class Main extends Plugin {
         pluginManager.registerCommand(this, new ExecuteServer());
         pluginManager.registerCommand(this, new FaviconServer());
         pluginManager.registerCommand(this, new MotdServer());
+        pluginManager.registerCommand(this, new MSMCommand());
         pluginManager.registerCommand(this, new RestartServer());
         pluginManager.registerCommand(this, new StartServer());
         pluginManager.registerCommand(this, new StopServer());
         // remove default bungeecord servers
         if (config.getBoolean("deregester_default")) {
-            ProxyServer.getInstance().getServers().clear();
+            plugin.getProxy().getServers().clear();
         }
         // autoload servers
         try {

@@ -1,6 +1,5 @@
 package ga.bignigg.servermanager;
 
-import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.ServerPing;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -61,7 +60,10 @@ public class ListenerClass implements Listener {
         String servername = sce.getTarget().getName();
         // sever autostartup
         if (serverThreadHashMap.containsKey(servername)) {
-            serverThreadHashMap.get(servername).endSchShutdown();
+            if (serverThreadHashMap.get(servername).endSchShutdown()) {
+                sce.getPlayer().connect(plugin.getProxy().getServerInfo(config.getString("idle_server")));
+                tryReconnect(sce.getPlayer(), sce.getTarget());
+            }
         }
     }
     @EventHandler
@@ -80,10 +82,15 @@ public class ListenerClass implements Listener {
         if (config.getStringList("reconnect_kick_messages").contains(krsn)) {
             ServerInfo kfrom = ske.getKickedFrom();
             if (serverThreadHashMap.containsKey(kfrom.getName())) {
-                tryReconnect(pl, kfrom, 25);
+                new Thread(() -> { // schedule reconnect retry 1s after kick
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ignored) { }
+                    tryReconnect(pl, kfrom);
+                }).start();
             }
             // send to idle server
-            ske.setCancelServer(ProxyServer.getInstance().getServerInfo(config.getString("idle_server")));
+            ske.setCancelServer(plugin.getProxy().getServerInfo(config.getString("idle_server")));
             ske.setCancelled(true);
         }
     }
@@ -100,7 +107,7 @@ public class ListenerClass implements Listener {
             }
             int playercount = 0;
             try {
-                Collection<ProxiedPlayer> plrz = ProxyServer.getInstance().getServers().get(servername).getPlayers();
+                Collection<ProxiedPlayer> plrz = plugin.getProxy().getServers().get(servername).getPlayers();
                 playercount = plrz.size();
                 Iterator<ProxiedPlayer> players = plrz.iterator();
                 for (int i = 0; i < 20; i++) {

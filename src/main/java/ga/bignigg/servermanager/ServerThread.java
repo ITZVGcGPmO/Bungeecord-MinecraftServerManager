@@ -1,7 +1,6 @@
 package ga.bignigg.servermanager;
 
 import net.md_5.bungee.api.Favicon;
-import net.md_5.bungee.api.ProxyServer;
 
 import javax.imageio.ImageIO;
 import java.io.*;
@@ -31,14 +30,14 @@ public class ServerThread {
         this.serverdir = srvrsdir + File.separator + servername;
     }
     public void startSchShutdown() {
-        if (config.getInt("srv_stop_aft")>0 && ProxyServer.getInstance().getServers().get(servername).getPlayers().size()==0){
+        if (config.getInt("srv_stop_aft")>0 && plugin.getProxy().getServers().get(servername).getPlayers().size()==0){
             log.info("start scheduled shutdown");
             sched_shutdown = Executors.newScheduledThreadPool(1).schedule(() -> {
-                if (ProxyServer.getInstance().getServers().get(servername).getPlayers().size()==0) {
+                if (plugin.getProxy().getServers().get(servername).getPlayers().size()==0) {
                     try {
                         writeCmd("say "+msg("sched_shutdown_msg").replace("%time%", ""+config.getInt("srv_stop_aft")));
-                        if (config.getBoolean("shutdown_proxyserver") && ProxyServer.getInstance().getPlayers().size()==0) {
-                            ProxyServer.getInstance().stop();
+                        if (config.getBoolean("shutdown_proxyserver") && plugin.getProxy().getPlayers().size()==0) {
+                            plugin.getProxy().stop();
                         } else {
                             stopServer();
                         }
@@ -47,22 +46,23 @@ public class ServerThread {
             }, config.getInt("srv_stop_aft"), TimeUnit.SECONDS);
         }
     }
-    public void endSchShutdown() {
+    public boolean endSchShutdown() {
         if (sched_shutdown!=null) { sched_shutdown.cancel(false); }
         if (config.getInt("srv_stop_aft")>0) {
             try {
                 startServer();
             } catch (Exception ignored) { }
             try {
-                done_load.await(ProxyServer.getInstance().getConfig().getTimeout(), TimeUnit.MILLISECONDS);
+                return !done_load.await(plugin.getProxy().getConfig().getTimeout()-2000, TimeUnit.MILLISECONDS); // return true 2 seconds before disconnect timeout
             } catch (InterruptedException ignored) { }
         }
+        return false;
     }
 
     public void deleteServer() {
         try { stopServer(); }
         catch (Exception ignored) { }
-        ProxyServer.getInstance().getServers().remove(servername);
+        plugin.getProxy().getServers().remove(servername);
         serverThreadHashMap.remove(servername);
         deleteFolder(new File(serverdir));
     }
@@ -109,6 +109,8 @@ public class ServerThread {
             dist_ver = sjlines.get(2);
             if (mc_dist.equalsIgnoreCase("paper")) {
                 jarfile = getPaper(mc_ver, dist_ver);
+            } else if (mc_dist.equalsIgnoreCase("forge")) {
+                jarfile = getForgeInstaller(mc_ver, dist_ver);
             } else {
                 log.warning(msg("unsupported_mcdist").replace("%vdists%", "paper").replace("%dist%", mc_dist));
             }
@@ -131,8 +133,8 @@ public class ServerThread {
                 if (m.find()) { srvmaxpl = Integer.parseInt(m.group(1)); }
             }
             in.close();
-            if (!ProxyServer.getInstance().getServers().containsKey(servername)) {
-                ProxyServer.getInstance().getServers().put(servername, ProxyServer.getInstance().constructServerInfo(
+            if (!plugin.getProxy().getServers().containsKey(servername)) {
+                plugin.getProxy().getServers().put(servername, plugin.getProxy().constructServerInfo(
                         servername, new InetSocketAddress(srvip, srvport), "",
                         new File(serverdir + File.separator + "bungee_restricted").exists()));
             }
@@ -175,8 +177,23 @@ public class ServerThread {
             service.submit(new Thread(() -> {
                 try {
                     auto_reboot_flag = true;
+                    String srvjar = jarfile;
+                    if (mc_dist.equalsIgnoreCase("forge")) {
+                        srvjar = serverdir+File.separator+jarfile.substring(jarfile.lastIndexOf(File.separator) + 1).replace("-installer", "-universal");
+                        File f = new File(srvjar);
+                        if (!f.exists()) {
+                            log.info(srvjar+" doesn't exist.");
+                            srvjar = serverdir+File.separator+jarfile.substring(jarfile.lastIndexOf(File.separator) + 1).replace("-installer", "");
+                            f = new File(srvjar);
+                        }
+                        srvjar = f.getAbsolutePath();
+                        log.info("srvjar: "+srvjar);
+                        log.info("running forge installer");
+                        runForgeInstaller(jarfile, serverdir, servername);
+                        log.info("forge installer done");
+                    }
                     ProcessBuilder processBuilder = new ProcessBuilder();
-                    processBuilder.command("java", "-jar", jarfile, "nogui");
+                    processBuilder.command("java", "-Dpaper.disableChannelLimit=true", "-jar", srvjar, "nogui");
                     processBuilder.directory(new File(serverdir));
                     Process process = processBuilder.start();
                     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -184,11 +201,14 @@ public class ServerThread {
                     String line;
                     String lastPrint = null;
                     while ((line = reader.readLine()) != null) {
-                        String pline = line.replaceFirst("^\\[\\d+:\\d+:\\d+ \\w+]: ", "");
+                        // strip all ansi colour codes
+                        line = line.replaceAll("\\e\\[[\\d;]*[^\\d;]","");
+                        // printline cleanup
+                        String pline = line.replaceFirst("^\\[\\d+:\\d+:\\d+(?: \\w+]:|] \\[.*?]) ", "");
                         if (!pline.equalsIgnoreCase(lastPrint)) { // stop console spam
                             if (done_load.getCount()==1 && line.contains(""+srvip)) {
                                 // join after server is responsive
-                                ProxyServer.getInstance().getServerInfo(servername).ping((ping, err) -> done_load.countDown());
+                                plugin.getProxy().getServerInfo(servername).ping((ping, err) -> done_load.countDown());
 //                                // join before server is responsive
 //                                done_load.countDown();
                             }

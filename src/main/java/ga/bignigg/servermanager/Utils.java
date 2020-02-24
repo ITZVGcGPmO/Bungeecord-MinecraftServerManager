@@ -8,7 +8,6 @@ import com.jcabi.aspects.Cacheable;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.CommandSender;
-import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
@@ -25,7 +24,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static ga.bignigg.servermanager.Main.*;
 
@@ -67,8 +69,8 @@ public class Utils {
     public static void sendmsg(CommandSender s, String message, ChatColor color) {
         String text = msg("message_prefix")+message;
         s.sendMessage(new ComponentBuilder(text).color(color).create());
-        if (ProxyServer.getInstance().getConsole()!=s) {
-            ProxyServer.getInstance().getConsole().sendMessage(new ComponentBuilder(s.getName()+": "+text).color(color).create());
+        if (plugin.getProxy().getConsole()!=s) {
+            plugin.getProxy().getConsole().sendMessage(new ComponentBuilder(s.getName()+": "+text).color(color).create());
         }
     }
 
@@ -84,12 +86,16 @@ public class Utils {
         File svedir = new File(saveDir);
         if (!svedir.exists()) { svedir.mkdirs(); }
         if (responseCode == HttpURLConnection.HTTP_OK) {
-            String disposition = httpConn.getHeaderField("Content-Disposition");
-            String contentType = httpConn.getContentType();
-            int contentLength = httpConn.getContentLength();
-            int index = disposition.indexOf("filename=");
-            if (index > 0 && fileName.equals("")) {
-                fileName = disposition.substring(index + 9);
+            if (fileName.equals("")) {
+                try {
+                    String disposition = httpConn.getHeaderField("Content-Disposition");
+                    int index = disposition.indexOf("filename=");
+                    if (index > 0) {
+                        fileName = disposition.substring(index + 9);
+                    }
+                } catch (Exception ignored) {
+                    fileName = fileURL.substring(fileURL.lastIndexOf("/") + 1);
+                }
             }
             String saveFilePath = saveDir + File.separator + fileName;
             File f = new File(saveFilePath);
@@ -124,6 +130,22 @@ public class Utils {
         JsonParser jp = new JsonParser(); //from gson
         JsonElement root = jp.parse(new InputStreamReader((InputStream) request.getContent())); //Convert the input stream to a json element
         return root.getAsJsonObject(); //May be an array, may be an object.
+    }
+    public static Matcher regexFindFromUrl(String sURL, Pattern p) throws IOException {
+        // Connect to the URL using java's native library
+        URL url = new URL(sURL);
+        URLConnection request = url.openConnection();
+        request.setRequestProperty("User-Agent", "BungeeServerManager");
+        request.connect();
+        BufferedReader reader = new BufferedReader(new InputStreamReader((InputStream) request.getContent()));
+        String pageMess = "";
+        String line;
+        while ((line = reader.readLine()) != null) {
+            pageMess = pageMess+line;
+        }
+        Matcher m = p.matcher(pageMess);
+        m.find();
+        return m;
     }
     public static Integer getAPort() {
         ServerSocket ssock = null;
@@ -211,6 +233,42 @@ public class Utils {
         return file;
     }
     @Cacheable(lifetime = 12, unit = TimeUnit.HOURS)
+    public static String getForgeInstaller(String mc_ver, String dist_ver) throws IOException {
+        String mcf_url = "https://files.minecraftforge.net/";
+        String mcf_jar = null;
+        if (!mc_ver.equalsIgnoreCase("latest")) {
+            mcf_url = "https://files.minecraftforge.net/maven/net/minecraftforge/forge/index_"+mc_ver+".html";
+        }
+        if (dist_ver.equalsIgnoreCase("latest") || dist_ver.equalsIgnoreCase("recommended")) {
+            String s = dist_ver.substring(0, 1).toUpperCase() + dist_ver.substring(1).toLowerCase();
+            mcf_jar = regexFindFromUrl(mcf_url, Pattern.compile("Download Latest.*?(https:\\/\\/files\\.minecraftforge\\.net[^\\\"]*?installer\\.jar)")).group(1);
+        } else {
+            mcf_jar = "https://files.minecraftforge.net/maven/net/minecraftforge/forge/"+mc_ver+"-"+dist_ver+"/forge-"+mc_ver+"-"+dist_ver+"-installer.jar";
+        }
+        String saveDir = bindir.toString()+File.separator+mc_ver.replaceAll("\\.", "_");
+        String file = downloadFile(mcf_jar, saveDir);
+        return file;
+    }
+    public static void runForgeInstaller(String jarfile, String serverdir, String servername) throws IOException, InterruptedException {
+        ProcessBuilder processBuilder = new ProcessBuilder();
+        processBuilder.command("java", "-jar", jarfile, "--installServer");
+        processBuilder.directory(new File(serverdir));
+        Process process = processBuilder.start();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+        String line;
+        String lastPrint = null;
+        while ((line = reader.readLine()) != null) {
+            String pline = line.replaceFirst("^\\[\\d+:\\d+:\\d+ \\w+]: ", "");
+            if (!pline.equalsIgnoreCase(lastPrint)) { // stop console spam
+                log.info("["+servername+"-FI] "+pline);
+                lastPrint = pline;
+            }
+        }
+        int exitCode = process.waitFor();
+        log.info("exited w code "+exitCode);
+    }
+    @Cacheable(lifetime = 12, unit = TimeUnit.HOURS)
     public static String getLatestPaperMCVer() {
         try {
             JsonArray versions = readJson("https://papermc.io/api/v1/paper/").get("versions").getAsJsonArray();
@@ -272,21 +330,52 @@ public class Utils {
         return rets;
     }
 
-    public static void tryReconnect(ProxiedPlayer pl, ServerInfo sinf, int tries_remaining) {
-        if (tries_remaining>0) {
-            sinf.ping((ping, err) -> {
+    public static void tryReconnect(ProxiedPlayer pl, ServerInfo sinf) {
+        sinf.ping((ping, err) -> {
+            if (plugin.getProxy().getPlayers().contains(pl)) {
                 if (ping==null) {
-
                     pl.sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder(msg("wait_server_start").replace("%server%", sinf.getName())).color(ChatColor.LIGHT_PURPLE).create());
                     serverThreadHashMap.get(sinf.getName()).endSchShutdown();
-                    tryReconnect(pl, sinf, tries_remaining-1);
+                    tryReconnect(pl, sinf);
                 } else {
                     pl.sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder(msg("server_start_reconnect").replace("%server%", sinf.getName())).color(ChatColor.LIGHT_PURPLE).create());
                     pl.connect(sinf);
                 }
-            });
-        } else {
-            pl.disconnect(new ComponentBuilder(msg("server_reconnect_nostart").replace("%server%", sinf.getName())).color(ChatColor.RED).create());
+            }
+        });
+    }
+
+    public static void loadConfig() {
+        config = loadConfigFile("config.yml");
+        messages = loadConfigFile("messages.yml");
+        defaultserver = plugin.getProxy().getConfig().getListeners().iterator().next().getServerPriority().get(0);
+
+        // force mojang EULA acceptance
+        if (!config.getBoolean("mojang_eula") ) {
+            Scanner myObj = new Scanner(System.in);
+            log.warning(msg("accept_eula"));
+            if (myObj.nextLine().toLowerCase().matches("true")){
+                log.info(msg("eula_accepted"));
+                sConf("mojang_eula", true);
+            } else {
+                log.info(msg("eula_denied"));
+                plugin.getProxy().stop();
+            }
+        }
+        // load server directory + files and such
+        srvrsdir = new File(config.getString("servers_dir"));
+        if (!srvrsdir.exists()) { srvrsdir.mkdirs(); }
+        bindir = new File(plugin.getDataFolder().toString()+File.separator+"bin");
+        if (!bindir.exists()) { bindir.mkdirs(); }
+        // default server configs
+        srvdefsdir = new File(config.getString("defaults_dir"));
+        if (!srvdefsdir.exists()) {
+            srvdefsdir.mkdirs();
+            String base = config.getString("defaults_dir")+File.separator;
+            new File(base+"plugins").mkdir();
+            writeTextFile(base+"eula.txt","eula=true" );
+            writeTextFile(base+"server.properties", "spawn-protection=0\nquery.port=%serverport%\nsnooper-enabled=false\nmax-players=999\nserver-port=%serverport%\nserver-ip="+config.getString("default_bind")+"\nonline-mode=false\nmotd=%servername% via Bungee-MinecraftServerManager");
+            writeTextFile(base+"spigot.yml", "config-version: 12\nsettings:\n  bungeecord: true\n");
         }
     }
 }

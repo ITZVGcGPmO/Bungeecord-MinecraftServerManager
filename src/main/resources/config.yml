@@ -28,3 +28,5 @@ idle_server: "AuthLobby"
 
 reconnect_kick_messages:
   - "Server closed"
+  - "[Proxy] Lost connection to server."
+  - "Server is still starting! Please wait before reconnecting."
