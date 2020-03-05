@@ -30,3 +30,6 @@ reconnect_kick_messages:
   - "Server closed"
   - "[Proxy] Lost connection to server."
   - "Server is still starting! Please wait before reconnecting."
+# all messages will reconnect them:
+#  - "*"
+time_error_margin_ms: 5000

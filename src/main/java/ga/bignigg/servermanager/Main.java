@@ -38,6 +38,7 @@ public class Main extends Plugin {
         pluginManager.registerCommand(this, new FaviconServer());
         pluginManager.registerCommand(this, new MotdServer());
         pluginManager.registerCommand(this, new MSMCommand());
+        pluginManager.registerCommand(this, new RelogCommand());
         pluginManager.registerCommand(this, new RestartServer());
         pluginManager.registerCommand(this, new StartServer());
         pluginManager.registerCommand(this, new StopServer());

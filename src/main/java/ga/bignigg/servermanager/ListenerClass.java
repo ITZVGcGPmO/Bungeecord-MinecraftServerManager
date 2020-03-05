@@ -1,7 +1,9 @@
 package ga.bignigg.servermanager;
 
+import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ServerPing;
 import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
@@ -51,9 +53,25 @@ public class ListenerClass implements Listener {
     }
     @EventHandler
     public void onLogin(LoginEvent le) {
-        // forced hosts redirect
+        // get servername from subdomain in wildcard dns record
         String servername = getServerByHostname(le.getConnection().getVirtualHost().getHostString());
-        le.getConnection().getListener().getServerPriority().set(0, servername);
+        if (serverThreadHashMap.containsKey(servername)) {
+            if (serverThreadHashMap.get(servername).endSchShutdown()) { // if server didn't start and player is about to timeout disconnect
+                le.getConnection().getListener().getServerPriority().set(0, config.getString("idle_server")); // send to idle server
+                new Thread(() -> {
+                    try {
+                        // wait for player to log into idle server & then try to reconnect them to destination
+                        Thread.sleep(config.getInt("time_error_margin_ms"));
+                        tryReconnect(plugin.getProxy().getPlayer(le.getConnection().getName()), plugin.getProxy().getServerInfo(servername));
+                    } catch (InterruptedException ignored) { }
+                }).start();
+            } else { // server started in time, connect them.
+                le.getConnection().getListener().getServerPriority().set(0, servername);
+            }
+        } else {
+            le.setCancelReason(new ComponentBuilder(msg("server_not_exist")).color(ChatColor.RED).create());
+            le.setCancelled(true);
+        }
     }
     @EventHandler
     public void onServerConnect(ServerConnectEvent sce) {
@@ -61,7 +79,7 @@ public class ListenerClass implements Listener {
         // sever autostartup
         if (serverThreadHashMap.containsKey(servername)) {
             if (serverThreadHashMap.get(servername).endSchShutdown()) {
-                sce.getPlayer().connect(plugin.getProxy().getServerInfo(config.getString("idle_server")));
+                sce.setCancelled(true);
                 tryReconnect(sce.getPlayer(), sce.getTarget());
             }
         }
@@ -79,14 +97,15 @@ public class ListenerClass implements Listener {
         String krsn = BaseComponent.toPlainText(ske.getKickReasonComponent());
         ProxiedPlayer pl = ske.getPlayer();
         log.info(pl.getName()+" kicked: reason: "+krsn);
-        if (config.getStringList("reconnect_kick_messages").contains(krsn)) {
+        // if kick message in reconnect_kick_messages or reconnect_kick_messages is a wildcard, try to reconnect them.
+        if (config.getStringList("reconnect_kick_messages").contains(krsn) || config.getStringList("reconnect_kick_messages").contains("*")) {
             ServerInfo kfrom = ske.getKickedFrom();
             if (serverThreadHashMap.containsKey(kfrom.getName())) {
-                new Thread(() -> { // schedule reconnect retry 1s after kick
+                new Thread(() -> { // give them time to reconnect to idle server then try to reconnect
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(config.getInt("time_error_margin_ms"));
+                        tryReconnect(pl, kfrom);
                     } catch (InterruptedException ignored) { }
-                    tryReconnect(pl, kfrom);
                 }).start();
             }
             // send to idle server

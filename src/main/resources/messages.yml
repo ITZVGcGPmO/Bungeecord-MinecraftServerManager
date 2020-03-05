@@ -34,11 +34,13 @@ reload_motd: "reloaded motd for server %server%"
 wait_server_start: "waiting for %server% to start..."
 server_start_reconnect: "reconnecting to %server%..."
 server_reconnect_nostart: "%server% didn't start back up..."
+player_reconnect: "reconnecting..."
 
 message_prefix: "[MSM] "
 no_permission: "invalid permissions to execute command."
 command_error: "error occoured executing command; check %errfile%"
 server_crashed: "%server% was not shut down properly. restarting server..."
+server_not_exist: "The server you tried to join does not exist."
 
 downloading_file: "Downloading %fileURL%"
 download_saved: "saved %saveFilePath%"

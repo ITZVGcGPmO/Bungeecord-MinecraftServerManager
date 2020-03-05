@@ -53,7 +53,8 @@ public class ServerThread {
                 startServer();
             } catch (Exception ignored) { }
             try {
-                return !done_load.await(plugin.getProxy().getConfig().getTimeout()-2000, TimeUnit.MILLISECONDS); // return true 2 seconds before disconnect timeout
+                // return true some time before disconnect timeout
+                return !done_load.await(plugin.getProxy().getConfig().getTimeout()-config.getInt("time_error_margin_ms"), TimeUnit.MILLISECONDS);
             } catch (InterruptedException ignored) { }
         }
         return false;
