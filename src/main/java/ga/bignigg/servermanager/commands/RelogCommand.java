@@ -2,6 +2,7 @@ package ga.bignigg.servermanager.commands;
 
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
+import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Command;
 
@@ -17,26 +18,24 @@ public class RelogCommand extends Command {
     @Override
     public void execute(CommandSender s, String[] args) {
         try {
-            String playername = null;
-            String servername = plugin.getProxy().getPlayer(s.getName()).getServer().getInfo().getName();
-            if (args.length > 1 && s.hasPermission("msm."+servername+".reconnect.others")) {
+            String playername = s.getName();
+            if (args.length > 1) {
                 playername = args[1];
-            } else if (s.hasPermission("msm."+servername+".reconnect.self")) {
-                playername = s.getName();
             }
-            if (playername==null) {
-                sendmsg(s, msg("no_permission"), ChatColor.RED);
-            } else {
+            ProxiedPlayer pl = plugin.getProxy().getPlayer(playername);
+            ServerInfo sinf = pl.getServer().getInfo();
+            if (playername.equals(s.getName()) && s.hasPermission("msm."+sinf.getName()+".reconnect") || s.hasPermission("msm."+sinf.getName()+".reconnectothers")) {
                 sendmsg(s, msg("player_reconnect"), ChatColor.GREEN);
-                ProxiedPlayer pl = plugin.getProxy().getPlayer(playername);
                 pl.connect(plugin.getProxy().getServerInfo(config.getString("idle_server"))); // send to idle server
                 new Thread(() -> {
                     try {
                         // wait some time for player to log into idle server & then try to reconnect them to destination
                         Thread.sleep(config.getInt("time_error_margin_ms"));
-                        tryReconnect(pl, plugin.getProxy().getServerInfo(servername));
+                        tryReconnect(pl, sinf);
                     } catch (InterruptedException ignored) { }
                 }).start();
+            } else {
+                sendmsg(s, msg("no_permission"), ChatColor.RED);
             }
         } catch (Exception e) {
             dumpError(s, e);
