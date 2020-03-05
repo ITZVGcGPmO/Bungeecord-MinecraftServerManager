@@ -24,7 +24,7 @@ public class RelogCommand extends Command {
             }
             ProxiedPlayer pl = plugin.getProxy().getPlayer(playername);
             ServerInfo sinf = pl.getServer().getInfo();
-            if (playername.equals(s.getName()) && s.hasPermission("msm."+sinf.getName()+".reconnect") || s.hasPermission("msm."+sinf.getName()+".reconnectothers")) {
+            if (playername.equals(s.getName()) && !s.hasPermission("msm."+sinf.getName()+".denyreconnect") || s.hasPermission("msm."+sinf.getName()+".reconnectothers")) {
                 sendmsg(s, msg("player_reconnect"), ChatColor.GREEN);
                 pl.connect(plugin.getProxy().getServerInfo(config.getString("idle_server"))); // send to idle server
                 new Thread(() -> {
